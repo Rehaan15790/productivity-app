@@ -1,4 +1,4 @@
-const V = 'productivity-v3';
+const V = 'productivity-v4';
 const PAGE = 'index.html';
 const EXTRA = ['manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png'];
 const FONTS = /^fonts\.(googleapis|gstatic)\.com$/;
