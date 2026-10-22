@@ -15,3 +15,7 @@ It works offline, and your data stays on your own device.
 ## First open
 
 Pick how to start: Division A batch A2's timetable, your own batch's classes, a blank start, or gym and health only. You can change what the app shows later in **Settings**.
+
+## Suggest a feature
+
+Use the **Suggest** tab in the app, or [open an issue](https://github.com/Rehaan15790/productivity-app/issues/new) here. Everyone can see and upvote ideas in [Issues](https://github.com/Rehaan15790/productivity-app/issues).

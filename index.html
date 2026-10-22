@@ -237,6 +237,8 @@ textarea{resize:vertical;line-height:1.45}
 body.setup .tabs{display:none}
 .tab[hidden]{display:none}
 .ck:disabled{opacity:.45;cursor:default}
+a.btn{text-decoration:none}
+.btn.off{opacity:.4;pointer-events:none}
 .tab{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 0 8px;min-height:58px;border:0;background:none;color:var(--muted);font:600 12.5px/1 var(--hand)}
 .tab svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .tab[aria-current="page"]{color:var(--ink)}
@@ -322,6 +324,7 @@ body.setup .tabs{display:none}
 <button class="tab" data-act="tab" data-v="learn"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="5" r="2"/><circle cx="18" cy="19" r="2"/><path d="M6 7v2.5a3 3 0 0 0 3 3h6a3 3 0 0 1 3 3V17"/></svg><span>Roadmap</span></button>
 <button class="tab" data-act="tab" data-v="gpa"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 9.5 12 5l9.5 4.5L12 14z"/><path d="M6.5 11.7v4.1c1.6 1.5 3.4 2.2 5.5 2.2s3.9-.7 5.5-2.2v-4.1M21.5 9.5v5"/></svg><span>CGPA</span></button>
 <button class="tab" data-act="tab" data-v="health"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="7" width="3.2" height="10" rx="1"/><rect x="15.8" y="7" width="3.2" height="10" rx="1"/><path d="M2.5 10v4M21.5 10v4M8.2 12h7.6"/></svg><span>Health</span></button>
+<button class="tab" data-act="tab" data-v="suggest"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 18h5M10.5 21h3"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.8.6 1.1 1.3 1.1 2.2h5c0-.9.3-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></svg><span>Suggest</span></button>
 <button class="tab" data-act="tab" data-v="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span>Settings</span></button>
 </div></nav>
 <div class="snack" id="snack" role="status" aria-live="polite" hidden></div>
@@ -1338,12 +1341,13 @@ const baseAt = S.updatedAt;
 const ui = Object.assign({ tab: 'today', open: {}, topic: null, filter: 'all', len: 25, timer: null, notice: null, attOpen: null, day: 0, ttEdit: false, course: null, unit: null, planEdit: false, mEdit: null, what: 'study', gp: null, gpD: null, gEx: null, gEdit: false, hEdit: false, quiz: null, lift: null, rest: null, restLen: 90, cpart: 'units', hpart: 'gym', pEdit: false, fOpen: null, fEd: false, fMy: null }, LS.get('nb.ui') || {});
 if (ui.what !== 'project') ui.what = 'study';
 if (ui.tab === 'att') ui.tab = 'classes';
-if (!['today', 'classes', 'courses', 'health', 'settings', 'quiz', ...(CGPA ? ['gpa'] : []), ...(ROADMAP ? ['learn'] : [])].includes(ui.tab)) ui.tab = 'today';
+if (!['today', 'classes', 'courses', 'health', 'suggest', 'settings', 'quiz', ...(CGPA ? ['gpa'] : []), ...(ROADMAP ? ['learn'] : [])].includes(ui.tab)) ui.tab = 'today';
 if (!REST.includes(ui.restLen)) ui.restLen = 90;
 if (!(ui.rest && ui.rest.endsAt > Date.now() && ui.rest.len > 0)) ui.rest = null;
 if (ui.len !== 50) ui.len = 25;
 if (!ui.open || typeof ui.open !== 'object') ui.open = {};
 if (!(ui.day >= 1 && ui.day <= 6)) ui.day = 0;
+ui.sg = { t: str(obj(ui.sg).t, 500), n: str(obj(ui.sg).n, 40), a: str(obj(ui.sg).a, 10) || 'other' };
 ui.semArm = false;
 ui.resetArm = false;
 ui.hArm = false;
@@ -2297,8 +2301,44 @@ const resetAll = () => {
   window.scrollTo(0, 0);
   toast('Everything was erased.', () => { S = norm(snap); ui.tab = 'settings'; saveUi(); commit(); });
 };
+const REPO = 'https://github.com/Rehaan15790/productivity-app', MAKER = 'Rehaan';
+const SG_AREAS = [...MODS.map(([k, t]) => [k, t]), ['other', 'Something else']];
+const sgArea = () => (SG_AREAS.find(([k]) => k === ui.sg.a) || SG_AREAS[SG_AREAS.length - 1])[1];
+const sgMsg = () => `Productivity app suggestion\nPart: ${sgArea()}\n${ui.sg.t.trim()}${ui.sg.n.trim() ? `\nFrom: ${ui.sg.n.trim()}` : ''}`;
+const sgIssue = () => `${REPO}/issues/new?${new URLSearchParams({ title: `[${sgArea()}] ${ui.sg.t.trim().split('\n')[0].slice(0, 70)}`, body: `${ui.sg.t.trim()}\n\nPart: ${sgArea()}${ui.sg.n.trim() ? `\nFrom: ${ui.sg.n.trim()}` : ''}` })}`;
+const sgLink = () => {
+  const ok = !!ui.sg.t.trim(), a = $('#sgGh'), s = $('#sgSend');
+  if (s) s.disabled = !ok;
+  if (!a) return;
+  a.classList.toggle('off', !ok);
+  if (ok) { a.href = sgIssue(); a.removeAttribute('aria-disabled'); } else { a.removeAttribute('href'); a.setAttribute('aria-disabled', 'true'); }
+};
+const vSuggest = () => {
+  const ok = !!ui.sg.t.trim();
+  return `<header class="sec top"><div class="mc"><h1>Suggestions</h1><p class="sub">Tell ${MAKER} what the app should add or change next.</p></div></header>
+<section class="sec"><h2 class="mn">idea</h2><div class="mc"><h2 class="h3">Your suggestion</h2><div class="edit" style="margin-top:0"><label>What should the app do?<textarea id="sgText" data-f="sg" rows="4" maxlength="500" placeholder="e.g. A reminder to drink water every two hours">${esc(ui.sg.t)}</textarea></label><div><p class="muted" style="font-size:14px">Which part is it about?</p><div class="chips" role="group" aria-label="Which part" style="margin-top:6px">${SG_AREAS.map(([k, l]) => `<button class="chip" data-act="sgArea" data-v="${k}" aria-pressed="${k === ui.sg.a}">${l}</button>`).join('')}</div></div><label>Your name (optional)<input id="sgName" data-f="sg" maxlength="40" autocomplete="name" value="${esc(ui.sg.n)}"></label></div><div class="btns" style="margin-top:12px"><button class="btn primary" id="sgSend" data-act="sgSend"${ok ? '' : ' disabled'}>Send it</button><a class="btn${ok ? '' : ' off'}" id="sgGh"${ok ? ` href="${esc(sgIssue())}"` : ' aria-disabled="true"'} target="_blank" rel="noopener noreferrer">Post on GitHub</a></div><p class="muted" style="margin-top:10px">Send it opens your share menu, so you can send it on WhatsApp or anywhere else. On a computer it copies the text instead. Posting on GitHub needs a free account, and everyone can see and upvote it there.</p><a class="link" href="${REPO}/issues" target="_blank" rel="noopener noreferrer">See all suggestions on GitHub</a></div></section>`;
+};
+const copyText = async t => {
+  try { await navigator.clipboard.writeText(t); return true; } catch {}
+  const x = document.createElement('textarea');
+  x.value = t; x.setAttribute('readonly', ''); x.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+  document.body.appendChild(x); x.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch {}
+  x.remove();
+  return ok;
+};
+const sgSend = async () => {
+  if (!ui.sg.t.trim()) { const x = $('#sgText'); if (x) x.focus(); return; }
+  const text = sgMsg();
+  if (navigator.share) {
+    try { await navigator.share({ text }); ui.sg.t = ''; saveUi(); render(); toast('Thanks for the suggestion.'); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  toast(await copyText(text) ? `Copied. Paste it into a message to ${MAKER}.` : "Couldn't copy it. Select your suggestion and copy it yourself.");
+};
 const tabOk = t => ({ classes: modOn('study'), courses: modOn('study'), quiz: modOn('study'), health: HP().length > 0 })[t] ?? true;
-const V = { today: vToday, classes: vClasses, courses: vCourses, learn: vLearn, gpa: vGpa, health: vHealth, settings: vSettings, quiz: vQuiz };
+const V = { today: vToday, classes: vClasses, courses: vCourses, learn: vLearn, gpa: vGpa, health: vHealth, suggest: vSuggest, settings: vSettings, quiz: vQuiz };
 const render = () => {
   const a = document.activeElement;
   let key = null;
@@ -2698,6 +2738,8 @@ const A = {
   setup: el => setup(el.dataset.v),
   mod: el => modSet(el.dataset.id),
   resetAll: () => resetAll(),
+  sgArea: el => { ui.sg.a = el.dataset.v; saveUi(); document.querySelectorAll('[data-act="sgArea"]').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === ui.sg.a)); sgLink(); },
+  sgSend: () => sgSend(),
   undo: () => { const f = undoFn; hideToast(); if (f) f(); }
 };
 document.addEventListener('click', e => {
@@ -2711,6 +2753,7 @@ app.addEventListener('input', e => {
   const el = e.target, f = el.dataset && el.dataset.f;
   if (!f) return;
   if (f === 'dlC') { $('#dlUs').innerHTML = unitChips(el.value); return; }
+  if (f === 'sg') { if (el.id === 'sgName') ui.sg.n = el.value.slice(0, 40); else ui.sg.t = el.value.slice(0, 500); saveUi(); sgLink(); return; }
   if (f === 'carIn') { carHint(); return; }
   if (f === 'aname' || f === 'aa' || f === 'at') {
     const c = cById(el.dataset.id);
