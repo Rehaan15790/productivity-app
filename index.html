@@ -1207,7 +1207,7 @@ const exParse = txt => String(txt).split('\n').map(l => {
 const exList = v => arr(v).filter(e => e && str(e.n, 40).trim()).slice(0, 20).map(e => ({ n: str(e.n, 40).trim(), t: TGT.test(e.t) ? e.t : '' }));
 const MODS = [['study', 'Study', 'Timetable, attendance, courses, revision, deadlines and the focus timer.'], ['gym', 'Gym', 'Workouts, sets and cardio.'], ['food', 'Food', 'Calories and protein.'], ['daily', 'Daily goals', 'Habits like water and sleep, ticked off each day.'], ['body', 'Progress', 'Weight, waist, goals and lift records.']];
 const modOn = k => S.mods[k] !== false;
-const blank = () => ({ v: 16, updatedAt: 0, seeded: false, mods: Object.fromEntries(MODS.map(([k]) => [k, true])), sem: 'Semester 1', batch: '', target: 75, routine: { commute: 30, gym: '17:00', project: '19:30', projectMin: 30, study: '20:30', sleep: '22:45' }, courses: [], slots: [], marks: {}, dl: [], prog: {}, score: {}, done: {}, pin: null, gpa: { sems: [], target: '', next: '' }, focus: { log: {}, proj: {} }, gym: { days: 4, plans: [], log: [], prev: [] }, health: { goal: null, w: {}, waist: {}, habits: [], ticks: {}, goals: [], prof: { ...PROF0, set: false } }, food: { log: {}, my: food0() }, cardio: [], quiz: {} });
+const blank = () => ({ v: 16, updatedAt: 0, seeded: false, mods: Object.fromEntries(MODS.map(([k]) => [k, true])), sem: 'Semester 1', batch: '', target: 75, routine: { commute: 30, gym: '17:00', project: '19:30', projectMin: 30, study: '20:30', sleep: '22:45' }, courses: [], slots: [], marks: {}, sub: {}, dl: [], prog: {}, score: {}, done: {}, pin: null, gpa: { sems: [], target: '', next: '' }, focus: { log: {}, proj: {} }, gym: { days: 4, plans: [], log: [], prev: [] }, health: { goal: null, w: {}, waist: {}, habits: [], ticks: {}, goals: [], prof: { ...PROF0, set: false } }, food: { log: {}, my: food0() }, cardio: [], quiz: {} });
 const seed = (b, legacy) => {
   b.seeded = true;
   b.sem = SEED.sem;
@@ -1315,6 +1315,8 @@ const norm = raw => {
     b.slots = arr(s.slots).filter(x => x && x.id && +x.day >= 1 && +x.day <= 6 && TIME.test(x.start) && TIME.test(x.end)).map(x => ({ id: String(x.id), day: +x.day, start: x.start, end: x.end, c: String(x.c || ''), k: KINDS.includes(x.k) ? x.k : 'Lecture', room: str(x.room, 30), who: str(x.who) }));
     const cut = dk(shift(new Date(), -60));
     for (const [k, v] of Object.entries(obj(s.marks))) if (DATE.test(k) && k >= cut) { const m = {}; for (const [sid, x] of Object.entries(obj(v))) if (['p', 'a', 'c'].includes(x)) m[sid] = x; if (Object.keys(m).length) b.marks[k] = m; }
+    const cids = new Set(b.courses.map(x => x.id)), sids = new Set(b.slots.map(x => x.id));
+    for (const [k, v] of Object.entries(obj(s.sub))) if (DATE.test(k) && k >= cut) { const m = {}; for (const [sid, c] of Object.entries(obj(v))) if (sids.has(sid) && cids.has(c)) m[sid] = c; if (Object.keys(m).length) b.sub[k] = m; }
     b.dl = arr(s.dl).filter(x => x && x.id && DATE.test(x.from)).map(x => ({ id: String(x.id), title: str(x.title, 80) || 'Deadline', c: String(x.c || ''), from: x.from, to: DATE.test(x.to) && x.to >= x.from ? x.to : x.from, tent: !!x.tent, done: !!x.done, u: arr(x.u).filter(k => typeof k === 'string').slice(0, 10) }));
     for (const [k, v] of Object.entries(obj(s.prog))) if (/^[\w-]+\.[a-z]\d+$/.test(k) && typeof v === 'string') b.prog[k] = v;
   } else {
@@ -1353,7 +1355,7 @@ ui.resetArm = false;
 ui.hArm = false;
 ui.markOpen = null;
 if (ui.timer && !(ui.timer.len > 0 && ['focus', 'break'].includes(ui.timer.kind) && (ui.timer.endsAt > 0 || typeof ui.timer.left === 'number'))) ui.timer = null;
-const saveUi = () => { const { semArm, resetArm, hArm, markOpen, ...rest } = ui; LS.set('nb.ui', rest); };
+const saveUi = () => { const { semArm, resetArm, hArm, markOpen, swapOpen, ...rest } = ui; LS.set('nb.ui', rest); };
 
 const app = $('#app');
 if (!ROADMAP) $('.tab[data-v="learn"]').remove();
@@ -1419,8 +1421,15 @@ const SC = ['SDC', 'FE', 'CP', 'WAD', 'ASEP', 'VACO', 'IKS'];
 const scls = id => { const i = SC.indexOf(id); return `s${i >= 0 ? i : [...String(id)].reduce((a, ch) => a + ch.charCodeAt(0), 0) % 7}`; };
 const sw = id => id && cById(id) ? `<i class="sw ${scls(id)}" aria-hidden="true"></i>` : '';
 const slotsOn = wd => S.slots.filter(s => s.day === wd).sort((a, b) => hm(a.start) - hm(b.start));
-const slotName = s => { const c = cById(s.c); return `${c ? c.short : 'Class'} ${KIND[s.k]}`; };
-const slotMeta = s => [s.room && (s.k === 'Online' ? esc(s.room) : `Room ${esc(s.room)}`), s.who && esc(s.who)].filter(Boolean).join(', ');
+// A class another subject's teacher took on one date: S.sub[date][slot id] = that subject's id.
+const slotC = (s, k) => { const x = k && (S.sub[k] || {})[s.id]; return x && cById(x) ? x : s.c; };
+const slotName = (s, k) => { const c = cById(slotC(s, k)); return `${c ? c.short : 'Class'} ${KIND[s.k]}`; };
+const slotMeta = (s, k) => [s.room && (s.k === 'Online' ? esc(s.room) : `Room ${esc(s.room)}`), slotC(s, k) === s.c && s.who && esc(s.who)].filter(Boolean).join(', ');
+const swapHTML = (s, k) => {
+  if (S.courses.length < 2) return '';
+  const c = slotC(s, k), was = c !== s.c, open = ui.swapOpen === `${k}.${s.id}`;
+  return `${was ? `<p class="evs edge">Subject changed for ${k === dk() ? 'today' : fmtD(k)}. Timetable says ${esc(slotName(s))}.</p>` : ''}${open ? `<p class="evs">Which subject was taught instead?</p><div class="seg3" role="group" aria-label="Subject taught: ${esc(slotName(s))}">${S.courses.map(x => `<button data-act="swap" data-id="${s.id}" data-k="${k}" data-v="${esc(x.id)}" aria-pressed="${x.id === c}">${esc(x.short)}${x.id === s.c ? ' (timetable)' : ''}</button>`).join('')}</div>` : ''}<button class="link" data-act="swapOpen" data-id="${s.id}" data-k="${k}" aria-expanded="${open}">${open ? 'Cancel' : was ? 'Change subject' : 'Different subject?'}</button>`;
+};
 const leaveAt = s => Math.max(0, Math.floor((hm(s.start) - S.routine.commute - 5) / 5) * 5);
 const attInfo = (s, T) => {
   const t = s.t, a = Math.min(s.a, t);
@@ -1436,7 +1445,7 @@ const ATT_MIN = 5;
 // A marked class shows only its choice (tap it to undo) and a Change link that brings back all three.
 const markSeg = (s, k) => {
   const m = (S.marks[k] || {})[s.id], all = !m || ui.markOpen === `${k}.${s.id}`, L = all ? MARKS : MARKS.filter(([v]) => v === m);
-  return `<div class="seg3" role="group" aria-label="Attendance: ${esc(slotName(s))}">${L.map(([v, l]) => `<button data-act="mark" data-id="${s.id}" data-v="${v}" data-k="${k}" aria-pressed="${m === v}">${l}</button>`).join('')}${all ? '' : `<button class="link" data-act="markOpen" data-id="${s.id}" data-k="${k}">Change</button>`}</div>`;
+  return `<div class="seg3" role="group" aria-label="Attendance: ${esc(slotName(s, k))}">${L.map(([v, l]) => `<button data-act="mark" data-id="${s.id}" data-v="${v}" data-k="${k}" aria-pressed="${m === v}">${l}</button>`).join('')}${all ? '' : `<button class="link" data-act="markOpen" data-id="${s.id}" data-k="${k}">Change</button>`}</div>`;
 };
 const unitOf = key => {
   const [cid, u] = String(key).split('.'), cat = CAT[cid], m = /^u(\d+)$/.exec(u || '');
@@ -1449,7 +1458,7 @@ const upcoming = days => { const t0 = dk(); return S.dl.filter(d => !d.done && d
 const hasUnits = () => S.courses.some(c => CAT[c.id] && !CAT[c.id].stage);
 // With no test close, pick the first unrevised unit: courses on today's timetable first, then the least revised course, then more credits.
 const nextUnit = () => {
-  const today = new Set(slotsOn(new Date().getDay()).map(s => s.c)), all = [];
+  const t0 = dk(), today = new Set(slotsOn(new Date().getDay()).map(s => slotC(s, t0))), all = [];
   S.courses.forEach((c, o) => {
     const cat = CAT[c.id], i = cat && !cat.stage ? cat.units.findIndex((_, j) => !S.prog[`${c.id}.u${j + 1}`]) : -1;
     if (i >= 0) all.push({ key: `${c.id}.u${i + 1}`, had: today.has(c.id), f: i / cat.units.length, cr: +c.credits || 0, o });
@@ -1524,7 +1533,7 @@ const aheadHTML = d => {
   const mon = shift(d, 1), end = dk(shift(d, 6)), rows = [], need = new Set();
   for (let i = 0; i < 6; i++) {
     const x = shift(mon, i), k = dk(x), l = slotsOn(x.getDay()), dls = S.dl.filter(y => !y.done && y.from === k);
-    const cls = l.length ? `<p class="ev">${pl(l.length, 'class', 'classes')}<span class="evt">, ${fmtT(hm(l[0].start))} to ${fmtT(Math.max(...l.map(s => hm(s.end))))}</span></p><p class="evs">${[...new Set(l.map(s => s.c))].map(id => { const c = cById(id); return `${sw(id)}${esc(c ? c.short : 'Class')}`; }).join(', ')}</p>` : '<p class="ev">No classes</p>';
+    const cls = l.length ? `<p class="ev">${pl(l.length, 'class', 'classes')}<span class="evt">, ${fmtT(hm(l[0].start))} to ${fmtT(Math.max(...l.map(s => hm(s.end))))}</span></p><p class="evs">${[...new Set(l.map(s => slotC(s, k)))].map(id => { const c = cById(id); return `${sw(id)}${esc(c ? c.short : 'Class')}`; }).join(', ')}</p>` : '<p class="ev">No classes</p>';
     rows.push(`<li class="tlr"><p class="mn tm"><span>${DAYS[x.getDay()]}<br>${x.getDate()}</span></p><div class="mc">${cls}${dls.map(y => `<p class="evs dlx">${y.from === y.to ? 'Due' : 'Starts'}: ${esc(y.title)}</p>`).join('')}</div></li>`);
   }
   S.dl.filter(y => !y.done && y.from > dk() && y.from <= end).forEach(y => dlUnits(y).forEach(u => { if (!S.prog[u]) need.add(u); }));
@@ -1607,8 +1616,8 @@ const dayRows = d => {
   // Attendance buttons for classes that have started, plus the next one.
   const nextI = list.findIndex(s => hm(s.start) > now);
   list.forEach((s, i) => {
-    const c = cById(s.c), info = c && c.t >= ATT_MIN ? attInfo(c, S.target) : null, meta = slotMeta(s), warn = info && info.cls !== 'ok';
-    ev.push({ t: hm(s.start), d: Math.max(15, hm(s.end) - hm(s.start)), cls: `cl ${scls(s.c)}`, h: `<p class="ev">${esc(slotName(s))}<span class="evt"> until ${fmtT(hm(s.end))}</span></p>${meta ? `<p class="evs">${meta}</p>` : ''}${warn ? `<p class="evs ${info.cls}">${esc(c.short)} attendance ${pctTxt(info.pct)}. ${info.msg}</p>` : ''}${hm(s.start) <= now || i === nextI ? markSeg(s, k) : ''}` });
+    const id = slotC(s, k), c = cById(id), info = c && c.t >= ATT_MIN ? attInfo(c, S.target) : null, meta = slotMeta(s, k), warn = info && info.cls !== 'ok';
+    ev.push({ t: hm(s.start), d: Math.max(15, hm(s.end) - hm(s.start)), cls: `cl ${scls(id)}`, h: `<p class="ev">${esc(slotName(s, k))}<span class="evt"> until ${fmtT(hm(s.end))}</span></p>${meta ? `<p class="evs">${meta}</p>` : ''}${warn ? `<p class="evs ${info.cls}">${esc(c.short)} attendance ${pctTxt(info.pct)}. ${info.msg}</p>` : ''}${hm(s.start) <= now || i === nextI ? markSeg(s, k) : ''}${swapHTML(s, k)}` });
   });
   const gl = gymLine();
   if (inP.length) ev.push({ t: Math.max(...inP.map(s => hm(s.end))) + R.commute, d: 30, h: `<p class="ev">Home</p><p class="evs">${hm(R.gym) === null ? `Free time for games and the gym${gl ? `. ${esc(gl)}` : ''}` : 'Free time'}</p>` });
@@ -1624,7 +1633,7 @@ const nextClassDay = d => {
     const x = shift(d, i), l = slotsOn(x.getDay());
     if (!l.length) continue;
     const f = l[0], inP = l.filter(s => s.k !== 'Online');
-    return `${i === 1 ? 'Tomorrow' : `Next classes on ${WD[x.getDay()]}`}: ${esc(slotName(f))} at ${fmtT(hm(f.start))}${f.room && f.k !== 'Online' ? ` in room ${esc(f.room)}` : ''}.${inP.length ? ` Leave by ${fmtT(leaveAt(inP[0]))}.` : ''}`;
+    return `${i === 1 ? 'Tomorrow' : `Next classes on ${WD[x.getDay()]}`}: ${esc(slotName(f, dk(x)))} at ${fmtT(hm(f.start))}${f.room && f.k !== 'Online' ? ` in room ${esc(f.room)}` : ''}.${inP.length ? ` Leave by ${fmtT(leaveAt(inP[0]))}.` : ''}`;
   }
   return '';
 };
@@ -1676,7 +1685,7 @@ const subjRow = c => {
   return `<li class="subj" data-row="${id}"><p class="mn pct ${i.cls}">${c.t ? pctTxt(i.pct) : ''}</p><div class="mc"><button class="tt srow" data-act="attEdit" data-id="${id}" aria-expanded="${open}"><span class="sname">${sw(c.id)}${esc(c.name)}</span><span class="sst ${i.cls}">${attLine(c, i)}</span>${c.t ? attBar(c, i) : ''}</button>${open ? `<div class="edit" style="margin:0 0 12px"><label>Subject name<input data-f="aname" data-id="${id}" value="${esc(c.name)}" maxlength="60" autocomplete="off"></label><div class="two"><label>Classes attended<input type="number" inputmode="numeric" min="0" data-f="aa" data-id="${id}" value="${c.a}"></label><label>Classes held<input type="number" inputmode="numeric" min="0" data-f="at" data-id="${id}" value="${c.t}"></label></div><div class="btns"><button class="btn small primary" data-act="attEdit" data-id="${id}">Done</button><button class="link danger" data-act="attDel" data-id="${id}">Delete subject</button></div></div>` : ''}</div></li>`;
 };
 const weekDate = wd => { const t = new Date(); return shift(t, wd - ((t.getDay() + 6) % 7 + 1)); };
-const slotRow = (s, k, can) => `<li class="tlr cl ${scls(s.c)}"><p class="mn tm"><span>${fmtT(hm(s.start))}</span></p><div class="mc"><p class="ev">${esc(slotName(s))}<span class="evt"> until ${fmtT(hm(s.end))}</span></p>${slotMeta(s) ? `<p class="evs">${slotMeta(s)}</p>` : ''}${ui.ttEdit ? `<button class="link danger" data-act="slotDel" data-id="${s.id}">Remove from timetable</button>` : can ? markSeg(s, k) : ''}</div></li>`;
+const slotRow = (s, k, can) => `<li class="tlr cl ${scls(slotC(s, k))}"><p class="mn tm"><span>${fmtT(hm(s.start))}</span></p><div class="mc"><p class="ev">${esc(slotName(s, k))}<span class="evt"> until ${fmtT(hm(s.end))}</span></p>${slotMeta(s, k) ? `<p class="evs">${slotMeta(s, k)}</p>` : ''}${ui.ttEdit ? `<button class="link danger" data-act="slotDel" data-id="${s.id}">Remove from timetable</button>` : `${can ? markSeg(s, k) : ''}${swapHTML(s, k)}`}</div></li>`;
 const addSlotForm = wd => S.courses.length ? `<div class="edit"><h3 class="h4" style="margin:0">Add a class</h3><div class="two"><label>Day<select id="nsD">${[1, 2, 3, 4, 5, 6].map(n => `<option value="${n}"${n === wd ? ' selected' : ''}>${WD[n]}</option>`).join('')}</select></label><label>Subject<select id="nsC">${S.courses.map(c => `<option value="${esc(c.id)}">${esc(c.short)}</option>`).join('')}</select></label></div><div class="two"><label>Starts<input id="nsS" type="time" value="09:00"></label><label>Ends<input id="nsE" type="time" value="10:00"></label></div><div class="two"><label>Type<select id="nsK">${KINDS.map(x => `<option>${x}</option>`).join('')}</select></label><label>Room<input id="nsR" maxlength="30" autocomplete="off"></label></div><div><button class="btn primary" data-act="slotAdd">Add class</button></div></div>` : '<p class="muted">Add your subjects above first, then their classes here.</p>';
 const vClasses = () => {
   const T = S.target, wd = ui.day || new Date().getDay() || 1, k = dk(weekDate(wd)), list = slotsOn(wd), sem1 = S.courses.some(c => CAT[c.id]);
@@ -2413,7 +2422,7 @@ const markDone = (id, again) => {
 const setMark = (sid, v, k) => {
   const s = S.slots.find(x => x.id === sid);
   if (!s || !DATE.test(k) || k > dk()) return;
-  const c = cById(s.c), day = S.marks[k] || (S.marks[k] = {}), prev = day[sid], next = prev === v ? null : v;
+  const c = cById(slotC(s, k)), day = S.marks[k] || (S.marks[k] = {}), prev = day[sid], next = prev === v ? null : v;
   if (c) {
     if (prev === 'p') { c.a = Math.max(0, c.a - 1); c.t = Math.max(0, c.t - 1); } else if (prev === 'a') c.t = Math.max(0, c.t - 1);
     if (next === 'p') { c.a++; c.t++; } else if (next === 'a') c.t++;
@@ -2423,6 +2432,21 @@ const setMark = (sid, v, k) => {
   ui.markOpen = null;
   if (!Object.keys(day).length) delete S.marks[k];
   commit();
+};
+const setSwap = (sid, k, cid) => {
+  const s = S.slots.find(x => x.id === sid), to = cById(cid);
+  ui.swapOpen = null;
+  if (!s || !to || !DATE.test(k)) { render(); return; }
+  const was = slotC(s, k);
+  if (was === cid) { render(); return; }
+  const m = (S.marks[k] || {})[sid], move = (co, d) => { if (!co || !['p', 'a'].includes(m)) return; if (m === 'p') co.a += d; co.t = Math.max(0, co.t + d); co.a = Math.min(Math.max(0, co.a), co.t); };
+  move(cById(was), -1);
+  move(to, 1);
+  const day = S.sub[k] || (S.sub[k] = {});
+  if (cid === s.c) delete day[sid]; else day[sid] = cid;
+  if (!Object.keys(day).length) delete S.sub[k];
+  commit();
+  toast(cid === s.c ? `Back to ${slotName(s)}` : `${slotName(s)} changed to ${to.short}${m === 'p' || m === 'a' ? '. Attendance moved too.' : ''}`, () => setSwap(sid, k, was));
 };
 const addSub = () => {
   const inp = $('#newSub'), name = inp ? inp.value.trim() : '';
@@ -2471,6 +2495,7 @@ const newSem = () => {
   S.courses = [];
   S.slots = [];
   S.marks = {};
+  S.sub = {};
   S.dl = [];
   S.score = {};
   S.quiz = {};
@@ -2708,6 +2733,8 @@ const A = {
   filter: el => { ui.filter = el.dataset.v; ui.topic = null; saveUi(); render(); },
   explain: el => openTutor(el.dataset.id),
   markOpen: el => { ui.markOpen = `${el.dataset.k}.${el.dataset.id}`; render(); },
+  swapOpen: el => { const id = `${el.dataset.k}.${el.dataset.id}`; ui.swapOpen = ui.swapOpen === id ? null : id; render(); },
+  swap: el => setSwap(el.dataset.id, el.dataset.k, el.dataset.v),
   cpart: el => { ui.cpart = el.dataset.v; saveUi(); render(); },
   quiz: el => startQuiz(el.dataset.id),
   qShow: () => { if (ui.quiz) { ui.quiz.show = true; saveUi(); render(); } },
