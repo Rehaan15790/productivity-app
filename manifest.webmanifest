@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Productivity app",
   "short_name": "Productivity",
-  "description": "Timetable, attendance, courses, roadmap, CGPA and health in one place.",
+  "description": "Timetable, attendance, deadlines, focus timer, gym, food and daily goals in one place.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
