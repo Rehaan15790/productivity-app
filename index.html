@@ -587,7 +587,7 @@ const fmtR = (a, b) => { if (a === b) return fmtD(a); const x = parseD(a), y = p
 const hm = s => { const m = /^(\d{1,2}):(\d{2})$/.exec(s || ''); return m ? Math.min(1439, +m[1] * 60 + +m[2]) : null; };
 const fmtT = x => { const v = Math.max(0, x), h = Math.floor(v / 60) % 24; return `${h % 12 || 12}:${pad(v % 60)}`; };
 const initials = n => (String(n).match(/\b[A-Za-z0-9]/g) || ['S']).join('').toUpperCase().slice(0, 5);
-const LS = { get: k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+const LS = { get: k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } } };
 
 const SEED = {
   sem: 'Semester 1',
@@ -792,7 +792,7 @@ const norm = raw => {
     const r = obj(s.routine), tm = (v, d) => TIME.test(v) ? v : v === '' ? '' : d;
     b.routine = { commute: Math.min(180, r.commute == null ? 30 : cnt(r.commute)), gym: TIME.test(r.gym) ? r.gym : '', project: tm(r.project, '19:30'), projectMin: PMIN.includes(+r.projectMin) ? +r.projectMin : 30, study: tm(r.study, '20:30'), sleep: tm(r.sleep, '22:45') };
     b.courses = arr(s.courses).filter(x => x && x.id).map(x => { const t = cnt(x.t); return course(String(x.id).slice(0, 40), str(x.short, 12) || initials(x.name), str(x.name) || 'Subject', num(x.credits, 0, 40) ?? 0, Math.min(cnt(x.a), t), t); });
-    b.slots = arr(s.slots).filter(x => x && x.id && +x.day >= 1 && +x.day <= 6 && TIME.test(x.start) && TIME.test(x.end)).map(x => ({ id: String(x.id), day: +x.day, start: x.start, end: x.end, c: String(x.c || ''), k: KINDS.includes(x.k) ? x.k : 'Lecture', room: str(x.room, 30), who: str(x.who) }));
+    b.slots = arr(s.slots).filter(x => x && x.id && +x.day >= 1 && +x.day <= 6 && TIME.test(x.start) && TIME.test(x.end)).map(x => ({ id: String(x.id).replace(/[^\w.-]/g, ''), day: +x.day, start: x.start, end: x.end, c: String(x.c || ''), k: KINDS.includes(x.k) ? x.k : 'Lecture', room: str(x.room, 30), who: str(x.who) })).filter(x => x.id); // slot ids go into HTML attributes, so a restored backup can't carry markup in one
     arr(s.courses).forEach(x => { const c = x && x.lab2 && b.courses.find(y => y.id === String(x.id).slice(0, 40)); if (c) c.lab2 = true; });
     for (const [k, v] of Object.entries(obj(s.hol))) if (DATE.test(k) && typeof v === 'string') b.hol[k] = str(v, 40) || 'Holiday';
     const cut = dk(shift(new Date(), -KEEP));
@@ -858,7 +858,12 @@ let ref = null, sync = 'pending', saving = false, dirty = false, saveT = 0, fail
 const syncText = () => sync === 'cloud' ? 'Saved to your Claude account, so your progress follows you to any device.' : sync === 'local' ? 'Saved in this browser.' : '';
 const setSync = m => { sync = m; const el = $('#sync'); if (el) el.textContent = syncText(); if (!S.seeded) render(); };
 const hosted = !!(window.claude && typeof window.claude.use === 'function');
-const saveLocal = () => LS.set('nb.state', S);
+// A save that fails (storage full or blocked) warns once, unless the cloud copy has it. The timeout lets it replace the action's own toast.
+let saveWarned = false;
+const saveLocal = () => { if (!LS.set('nb.state', S) && !ref && !saveWarned) { saveWarned = true; setTimeout(() => toast("Couldn't save on this device. Download a backup in Settings now."), 0); } };
+// Outside claude.ai the data lives only in this browser, so ask it not to clear the storage when space runs low.
+let kept = hosted;
+const keep = () => { if (kept) return; kept = true; try { navigator.storage.persist().catch(() => {}); } catch {} };
 const FATAL = ['invalid_argument', 'revoked', 'not_granted', 'capability_disabled', 'capability_removed', 'quota_exceeded', 'transform_error'];
 const fit = d => {
   const fk = Object.keys(d.food.log).sort();
@@ -880,7 +885,7 @@ const flush = async () => {
   if (dirty && ref && !fails) flush();
 };
 const queue = () => { if (!ref) return; dirty = true; clearTimeout(saveT); saveT = setTimeout(flush, 900); };
-const commit = (re = true) => { S.updatedAt = Date.now(); saveLocal(); queue(); if (re) render(); };
+const commit = (re = true) => { S.updatedAt = Date.now(); saveLocal(); keep(); queue(); if (re) render(); };
 const editing = () => { const a = document.activeElement; return !!a && app.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName); };
 const adopt = d => { S = norm(JSON.parse(JSON.stringify(d))); saveLocal(); render(); };
 const connect = async () => {
