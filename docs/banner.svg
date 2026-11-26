@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 400" width="1280" height="400" role="img" aria-labelledby="title desc">
+  <title id="title">Productivity app</title>
+  <desc id="desc">Timetable, attendance, deadlines, focus, gym and food in one app. Works offline, and your data stays on your device.</desc>
+  <style>
+    .sans { font-family: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace; }
+    .cursor { animation: blink 1.1s steps(1, end) infinite; }
+    .fill { animation: fill 3s steps(1, end) infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+    @keyframes fill { 50% { fill: #FFC54D; } }
+    @media (prefers-reduced-motion: reduce) { .cursor, .fill { animation: none; } }
+  </style>
+  <defs>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#9D8CFF" stroke-opacity="0.06"/>
+    </pattern>
+    <pattern id="steps" width="40" height="48" patternUnits="userSpaceOnUse">
+      <rect x="6" y="14" width="28" height="20" fill="#FFC54D"/>
+    </pattern>
+  </defs>
+
+  <rect width="1280" height="400" fill="#14111F"/>
+  <rect width="1280" height="352" fill="url(#grid)"/>
+
+  <g transform="translate(1040 34)">
+    <rect x="0" y="0" width="38" height="22" rx="3" fill="#6EA8FE" fill-opacity="0.45"/>
+    <rect x="44" y="0" width="38" height="22" rx="3" fill="#F78FB3" fill-opacity="0.45"/>
+    <rect x="88" y="0" width="38" height="22" rx="3" fill="#8BD3C7" fill-opacity="0.45"/>
+    <rect x="132" y="0" width="38" height="22" rx="3" fill="#FFB86B" fill-opacity="0.45"/>
+    <rect x="0" y="28" width="82" height="22" rx="3" fill="#C3A6FF" fill-opacity="0.45"/>
+    <rect x="88" y="28" width="38" height="22" rx="3" fill="#D7E36A" fill-opacity="0.45"/>
+    <rect x="132" y="28" width="38" height="22" rx="3" fill="#6EA8FE" fill-opacity="0.45"/>
+    <rect x="0" y="56" width="38" height="22" rx="3" fill="#8BD3C7" fill-opacity="0.45"/>
+    <rect x="44" y="56" width="38" height="22" rx="3" fill="#FFB86B" fill-opacity="0.45"/>
+    <rect x="88" y="56" width="82" height="22" rx="3" fill="#F78FB3" fill-opacity="0.45"/>
+    <rect x="0" y="84" width="38" height="22" rx="3" fill="#C3A6FF" fill-opacity="0.45"/>
+    <rect x="44" y="84" width="38" height="22" rx="3" fill="#6EA8FE" fill-opacity="0.45"/>
+    <rect x="88" y="84" width="38" height="22" rx="3" fill="#2F2948"/>
+    <rect x="132" y="84" width="38" height="22" rx="3" fill="#D7E36A" fill-opacity="0.45"/>
+  </g>
+
+  <polygon points="114,72 222,72 222,170 204,188 96,188 96,90" fill="#5ED6E8"/>
+  <polyline points="124,130 150,156 194,112" fill="none" stroke="#14111F" stroke-width="16" stroke-linecap="square"/>
+  <rect x="96" y="204" width="22" height="16" fill="#FFC54D"/>
+  <rect x="124" y="204" width="22" height="16" fill="#FFC54D"/>
+  <rect x="152" y="204" width="22" height="16" fill="#FFC54D"/>
+  <rect class="fill" x="180" y="204" width="22" height="16" fill="#2F2948"/>
+
+  <g class="sans" font-size="78" font-weight="900">
+    <text x="300" y="196" textLength="720" lengthAdjust="spacing" fill="#EDEAFB">PRODUCTIVITY</text>
+  </g>
+  <text x="304" y="242" class="sans" font-size="17" font-weight="600" fill="#9E97C2" textLength="700" lengthAdjust="spacing">TIMETABLE · ATTENDANCE · DEADLINES · FOCUS · GYM · FOOD</text>
+
+  <text x="304" y="302" class="mono" font-size="20" textLength="456" lengthAdjust="spacingAndGlyphs"><tspan fill="#5ED6E8">↗</tspan><tspan fill="#EDEAFB"> rehaan15790.github.io/productivity-app</tspan></text>
+  <rect class="cursor" x="766" y="285" width="11" height="21" fill="#5ED6E8"/>
+
+  <rect y="352" width="1280" height="48" fill="#1E1A30"/>
+  <rect y="352" width="1280" height="48" fill="url(#steps)" fill-opacity="0.85"/>
+  <rect x="96" y="362" width="520" height="28" fill="#14111F"/>
+  <text x="112" y="382" class="sans" font-size="14" font-weight="700" fill="#5ED6E8" textLength="488" lengthAdjust="spacing">WORKS OFFLINE · YOUR DATA STAYS ON YOUR DEVICE</text>
+</svg>
